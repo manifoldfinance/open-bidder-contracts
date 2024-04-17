@@ -15,7 +15,6 @@ contract OpenBidder is IBidder {
     mapping(address user => uint256 balance) public balances;
     mapping(uint256 slot => uint256[] slotBids) internal bids;
     mapping(address user => mapping(uint256 slot => uint256 bid)) internal bidUser;
-    // mapping(address user => uint256[] userBids) internal bidsUser;
 
     constructor(WETH _weth, address _auctioneer, address settlement) {
         weth = _weth;
@@ -48,26 +47,7 @@ contract OpenBidder is IBidder {
         balances[msg.sender] += amount;
     }
 
-    // /// @dev Make a bid for future slots until filled or cancelled. Pay up front. Unfilled bid balances carry over for new bids.
-    // function goodTilCanceled(uint128 weiPerGas, uint120 amountOfGas) external payable {
-    //     uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
-    //     if (msg.value < amount) revert();
-    //     if (msg.value > 0)
-    //         weth.deposit{value: msg.value}();
-    //     uint8 bidderId = auctioneer.IdMap(address(this));
-    //     uint256 packedBid = auctioneer.packBid(weiPerGas, amountOfGas, bidderId);
-    //     bidsUser[msg.sender].push(packedBid);
-    //     balances[msg.sender] += amount;
-    // }
-
     function getBid(uint256 slot) external view returns (uint256[] memory packedBids) {
-        // uint256 lenGTC = bidsUser.length;
-        // uint256 lenFOK = bids[slot].length;
-        // uint256 lenBids = lenGTC + lenFOK;
-        // packedBids = new uint256[](lenBids);
-        // for (uint256 i = 0; i < lenBids; i++) {
-            
-        // }
         return bids[slot];
     }
 
