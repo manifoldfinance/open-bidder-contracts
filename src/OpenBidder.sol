@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 // Auction Contract
 import { WETH } from "solmate/tokens/WETH.sol";
+import {LibSort} from "solady/utils/LibSort.sol";
 import { IBidder } from "src/interfaces/IBidder.sol";
 import { IAuctioneer } from "src/interfaces/IAuctioneer.sol";
 import { ISettlement } from "src/interfaces/ISettlement.sol";
@@ -97,7 +98,7 @@ contract OpenBidder is IBidder {
         uint256 cumAmount;
         for (uint256 bidIdx = bidCountLocal; bidIdx > 0; bidIdx--) {
             uint256 packedBid = roundBids[bidIdx - 1];
-            (, uint120 itemsToBuy, uint128 bidPrice) = decodeBid(packedBid);
+            (, , uint128 weiPerGas) = decodeBid(packedBid);
             uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
             cumAmount += amount;
             if (cumAmount > amountOwed) revert();
