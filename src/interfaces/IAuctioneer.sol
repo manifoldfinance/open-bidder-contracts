@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.4;
-
-interface Interface {
+interface IAuctioneer {
     error AuctionAlreadyOpen(uint256 slot);
     error AuctionAlreadySettled(uint256 slot);
     error AuctionNotClosed(uint256 slot);
