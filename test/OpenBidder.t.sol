@@ -31,22 +31,30 @@ contract OpenBidderTest is Test {
         auctioneer.openAuction(slot, 5000000);
     }
 
-    function testMakeBid() public {
+    function testOpenBid() public {
         uint128 weiPerGas = 20000000000;
         uint120 amountOfGas = 100000;
         uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
+        // mock return tx bundle hash received from mev_sendBetaBundle
+        bytes32 bundleHash = bytes32(uint256(1));
         vm.deal(address(this), amount);
-        bidder.makeBid{value: amount}(slot, weiPerGas, amountOfGas);
-        assertEq(bidder.balances(address(this)), amount);
+        bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
+
+        (uint120 amountOfGas2, uint128 weiPerGas2, address bidder2, bytes32 bundleHash2) = bidder.openBids(0);
+        assertEq(bidder2, address(this));
+        assertEq(weiPerGas2, weiPerGas);
+        assertEq(amountOfGas2, amountOfGas);
+        assertEq(bundleHash2, bundleHash);
     }
 
     function testGetBid() public {
         uint128 weiPerGas = 20000000000;
         uint120 amountOfGas = 100000;
         uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
+        bytes32 bundleHash = bytes32(uint256(1));
 
         vm.deal(address(this), amount);
-        bidder.makeBid{value: amount}(slot, weiPerGas, amountOfGas);
+        bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
         
         uint256[] memory bids = bidder.getBid(slot);
         assertEq(bids.length, 1);
@@ -56,16 +64,19 @@ contract OpenBidderTest is Test {
         uint128 weiPerGas = 20000000000;
         uint120 amountOfGas = 100000;
         uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
+        bytes32 bundleHash = bytes32(uint256(1));
 
         vm.deal(address(this), amount);
-        bidder.makeBid{value: amount}(slot, weiPerGas, amountOfGas);
+        bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
 
         vm.prank(operator);
         auctioneer.runAndSettle(slot);
 
-        bytes32[] memory hashes = new bytes32[](1);
-        hashes[0] = bytes32(uint256(1));
-        bidder.submitBundles(slot, amountOfGas, hashes);
-        assertEq(bidder.balances(address(this)), 0);
+        bidder.submitBundles(slot);
+
+        (, , address bidder3, ) = bidder.openBids(0);
+        assertEq(bidder3, address(0));
+        (, , address bidder2, ) = bidder.wonBids(0);
+        assertEq(bidder2, address(this));
     }
 }
