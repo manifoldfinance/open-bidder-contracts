@@ -1,3 +1,13 @@
+# OpenBidder Contract
+## Overview
+
+The OpenBidder contract facilitates participation in auctions by allowing users to place bids for gas space bundles. It interacts with other contracts such as WETH (Wrapped Ether), an auctioneer, and a settlement contract.
+## Features
+
+- Bid Placement: Users can place bids for gas space bundles by specifying the amount of gas and the price per gas.
+- Cancellation: Bidders can cancel their open bids and reclaim their funds.
+- Bundle Submission: After an auction slot has ended, the contract automatically submits the bundle hashes to a settlement contract for processing.
+
 ## Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**

@@ -2,8 +2,8 @@
 pragma solidity ^0.8.13;
 
 import {Script, console} from "forge-std/Script.sol";
-import { WETH } from "solmate/tokens/WETH.sol";
-import { OpenBidder } from "src/OpenBidder.sol";
+import {WETH} from "solmate/tokens/WETH.sol";
+import {OpenBidder} from "src/OpenBidder.sol";
 
 contract OpenBidderScript is Script {
     error WrongChain();
@@ -19,7 +19,6 @@ contract OpenBidderScript is Script {
     function setUp() public {}
 
     function run() public {
-        
         if (getChainID() != L2_CHAIN_ID) revert WrongChain();
 
         vm.startBroadcast();

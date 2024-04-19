@@ -2,9 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {Test, console} from "forge-std/Test.sol";
-import { WETH } from "solmate/tokens/WETH.sol";
+import {WETH} from "solmate/tokens/WETH.sol";
 import {OpenBidder} from "../src/OpenBidder.sol";
-import { IAuctioneer } from "src/interfaces/IAuctioneer.sol";
+import {IAuctioneer} from "src/interfaces/IAuctioneer.sol";
 
 contract OpenBidderTest is Test {
     OpenBidder public bidder;
@@ -55,7 +55,7 @@ contract OpenBidderTest is Test {
 
         vm.deal(address(this), amount);
         bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
-        
+
         uint256[] memory bids = bidder.getBid(slot);
         assertEq(bids.length, 1);
     }
@@ -74,9 +74,9 @@ contract OpenBidderTest is Test {
 
         bidder.submitBundles(slot);
 
-        (, , address bidder3, ) = bidder.openBids(0);
+        (,, address bidder3,) = bidder.openBids(0);
         assertEq(bidder3, address(0));
-        (, , address bidder2, ) = bidder.wonBids(0);
+        (,, address bidder2,) = bidder.wonBids(0);
         assertEq(bidder2, address(this));
     }
 }
