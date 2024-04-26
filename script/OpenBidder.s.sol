@@ -13,8 +13,8 @@ contract OpenBidderScript is Script {
     // todo: add mainnet details when deployed
     // testnet
     uint256 constant L2_CHAIN_ID = 42169;
-    address constant auctioneer = 0x10DeC79E201FE7b27b8c4A1524d9733727D60ea4;
-    address constant settlement = 0x46bb4fE80C04b5C28C761ADdd43FD10fFCcB57CE;
+    address constant auctioneer = 0x56e0B667f0279ff74Ed04632B5230D77B78fc704;
+    address constant settlement = 0xa77c65DBfaCAd5FA2996A234D11a02CD8F43A991;
 
     function setUp() public {}
 

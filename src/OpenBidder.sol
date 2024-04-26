@@ -162,7 +162,7 @@ contract OpenBidder is IBidder {
         if (slot <= slotFinished) return ();
 
         // check auction state
-        (, bool isOpen, bool isSettled) = auctioneer.auctions(slot);
+        (, bool isOpen, bool isSettled,,) = auctioneer.auctions(slot);
         if (isOpen) revert();
         if (!isSettled) revert();
 
