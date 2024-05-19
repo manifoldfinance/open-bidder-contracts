@@ -23,8 +23,8 @@ contract OpenBidderScript is Script {
             auctioneer = 0x86Bc75A43704E38f0FD94BdA423C50071fE17c99;
             settlement = 0x80C5FfF824d14c87C799D6F90b7D8e0a715bd33C;
         } else if (id == L2_TESTNET_CHAIN_ID) {
-            auctioneer = 0x56e0B667f0279ff74Ed04632B5230D77B78fc704;
-            settlement = 0xa77c65DBfaCAd5FA2996A234D11a02CD8F43A991;
+            auctioneer = 0x82052435119AedBEC6e237B5414880bF388F1B63;
+            settlement = 0x513844F4425d54beC19B0594AE072e49bEbBF388;
         } else {
             revert WrongChain();
         }

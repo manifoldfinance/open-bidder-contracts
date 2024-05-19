@@ -64,14 +64,14 @@ contract OpenBidder is IBidder {
         if (bidderId == 0) revert();
 
         // save bid
-        openBids[bidCount] = Bid(amountOfGas, weiPerGas, msg.sender, bundleHash);
         ++bidCount;
+        openBids[bidCount] = Bid(amountOfGas, weiPerGas, msg.sender, bundleHash);
     }
 
     function _removeOpenBid(uint256 bidId) internal {
         // swap last bid with bid to remove, then remove last item
-        openBids[bidId] = openBids[bidCount - 1];
-        delete openBids[bidCount - 1];
+        openBids[bidId] = openBids[bidCount];
+        delete openBids[bidCount];
         --bidCount;
     }
 
@@ -82,9 +82,10 @@ contract OpenBidder is IBidder {
      */
     function getBidIdByBundleHash(bytes32 bundleHash) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].bundleHash == bundleHash) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (openBids[bidId].bundleHash == bundleHash) return bidId;
         }
+        bidId = 0;
     }
 
     /**
@@ -94,9 +95,10 @@ contract OpenBidder is IBidder {
      */
     function getBidIdBySender(address sender) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].bidder == sender) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (openBids[bidId].bidder == sender) return bidId;
         }
+        bidId = 0;
     }
 
     /**
@@ -107,9 +109,10 @@ contract OpenBidder is IBidder {
      */
     function getBidIdByDetails(uint120 amountOfGas, uint128 weiPerGas) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].weiPerGas == weiPerGas && openBids[bidId].amountOfGas == amountOfGas) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (openBids[bidId].weiPerGas == weiPerGas && openBids[bidId].amountOfGas == amountOfGas) return bidId;
         }
+        bidId = 0;
     }
 
     function _checkSender(uint256 bidId) internal view {
@@ -147,8 +150,8 @@ contract OpenBidder is IBidder {
         uint256 len = bidCount;
         uint8 bidderId = auctioneer.IdMap(address(this));
         packedBids = new uint256[](len);
-        for (uint256 bidId; bidId < len; bidId++) {
-            packedBids[bidId] = packBid(openBids[bidId].weiPerGas, openBids[bidId].amountOfGas, bidderId);
+        for (uint256 bidId = 1; bidId < len + 1; bidId++) {
+            packedBids[bidId - 1] = packBid(openBids[bidId].weiPerGas, openBids[bidId].amountOfGas, bidderId);
         }
     }
 
@@ -192,6 +195,9 @@ contract OpenBidder is IBidder {
             // add to won list
             wonBids[wonBidCount] = Bid(bid.amountOfGas, bid.weiPerGas, bid.bidder, bid.bundleHash);
             ++wonBidCount;
+        }
+        for (uint256 i; i < hashes.length; i++) {
+            uint256 bidId = getBidIdByBundleHash(hashes[i]);
             // remove from open list
             _removeOpenBid(bidId);
         }

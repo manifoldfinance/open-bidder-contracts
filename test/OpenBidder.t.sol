@@ -8,7 +8,7 @@ import {IAuctioneer} from "src/interfaces/IAuctioneer.sol";
 
 contract OpenBidderTest is Test {
     OpenBidder public bidder;
-    string RPC_L2 = vm.envString("RPC"); // L2 RPC url, default testnet
+    string RPC_L2 = vm.envString("RPC_L2"); // L2 RPC url, default testnet
     uint256 FORK_ID;
     WETH constant weth = WETH(payable(0x4200000000000000000000000000000000000006));
     uint256 constant L2_CHAIN_ID = 7890785;
@@ -63,7 +63,7 @@ contract OpenBidderTest is Test {
         vm.deal(address(this), amount);
         bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
 
-        (uint120 amountOfGas2, uint128 weiPerGas2, address bidder2, bytes32 bundleHash2) = bidder.openBids(0);
+        (uint120 amountOfGas2, uint128 weiPerGas2, address bidder2, bytes32 bundleHash2) = bidder.openBids(1);
         assertEq(bidder2, address(this));
         assertEq(weiPerGas2, weiPerGas);
         assertEq(amountOfGas2, amountOfGas);
@@ -97,9 +97,23 @@ contract OpenBidderTest is Test {
 
         bidder.submitBundles(slot);
 
-        (,, address bidder3,) = bidder.openBids(0);
+        (,, address bidder3,) = bidder.openBids(1);
         assertEq(bidder3, address(0));
         (,, address bidder2,) = bidder.wonBids(0);
         assertEq(bidder2, address(this));
+    }
+
+    function testGetBidByDetails() public {
+        uint128 weiPerGas = 20000000000;
+        uint120 amountOfGas = 100000;
+        uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
+        bytes32 bundleHash = bytes32(uint256(1));
+
+        vm.deal(address(this), amount);
+        bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
+
+        assertEq(bidder.getBidIdByBundleHash(bundleHash), 1);
+        assertEq(bidder.getBidIdBySender(address(this)), 1);
+        assertEq(bidder.getBidIdByDetails(amountOfGas, weiPerGas), 1);
     }
 }
