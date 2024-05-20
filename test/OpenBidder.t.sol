@@ -5,6 +5,7 @@ import {Test, console} from "forge-std/Test.sol";
 import {WETH} from "solmate/tokens/WETH.sol";
 import {OpenBidder} from "../src/OpenBidder.sol";
 import {IAuctioneer} from "src/interfaces/IAuctioneer.sol";
+import {IBidder} from "src/interfaces/IBidder.sol";
 
 contract OpenBidderTest is Test {
     OpenBidder public bidder;
@@ -63,11 +64,12 @@ contract OpenBidderTest is Test {
         vm.deal(address(this), amount);
         bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
 
-        (uint120 amountOfGas2, uint128 weiPerGas2, address bidder2, bytes32 bundleHash2) = bidder.openBids(1);
+        (IBidder.BidState state,uint120 amountOfGas2, uint128 weiPerGas2, ,address bidder2, bytes32 bundleHash2) = bidder.bids(1);
         assertEq(bidder2, address(this));
         assertEq(weiPerGas2, weiPerGas);
         assertEq(amountOfGas2, amountOfGas);
         assertEq(bundleHash2, bundleHash);
+        assertEq(uint8(state), uint8(IBidder.BidState.OPEN));
     }
 
     function testGetBid() public {
@@ -97,10 +99,11 @@ contract OpenBidderTest is Test {
 
         bidder.submitBundles(slot);
 
-        (,, address bidder3,) = bidder.openBids(1);
-        assertEq(bidder3, address(0));
-        (,, address bidder2,) = bidder.wonBids(0);
-        assertEq(bidder2, address(this));
+        
+        (IBidder.BidState state,,, uint96 _slot,address bidder3,) = bidder.bids(1);
+        assertEq(bidder3, address(this));
+        assertEq(_slot, slot);
+        assertEq(uint8(state), uint8(IBidder.BidState.PENDING));
     }
 
     function testGetBidByDetails() public {

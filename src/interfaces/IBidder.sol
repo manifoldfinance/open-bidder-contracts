@@ -2,6 +2,10 @@
 pragma solidity ^0.8.20;
 
 interface IBidder {
+    enum BidState {
+        OPEN, PENDING, FINAL
+    }
+    
     /**
      * @dev Get the bid from a bidder for a specific slot and round.
      * @param slot The auction slot.
