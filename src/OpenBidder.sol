@@ -25,6 +25,7 @@ contract OpenBidder is IBidder {
         bytes32 bundleHash;
     }
 
+    address public operator;
     WETH public weth;
     IAuctioneer public auctioneer;
     ISettlement public house;
@@ -44,6 +45,7 @@ contract OpenBidder is IBidder {
         auctioneer = IAuctioneer(_auctioneer);
         house = ISettlement(settlement);
         weth.approve(_auctioneer, type(uint256).max);
+        operator = msg.sender;
     }
 
     /**
@@ -135,11 +137,17 @@ contract OpenBidder is IBidder {
         uint256 amount = _amountPaid(bidId);
 
         // remove bid
+        if (uint8(bids[bidId].state) != uint8(BidState.OPEN)) revert();
         _removeOpenBid(bidId);
 
         // refund amount paid
         // use weth to avoid re-entrancy
         weth.safeTransfer(msg.sender, amount);
+    }
+
+    function removeBid(uint256 bidId) external {
+        if (msg.sender != operator) revert();
+        _removeOpenBid(bidId);
     }
 
     /**
@@ -149,11 +157,19 @@ contract OpenBidder is IBidder {
     function getBid(uint256) public view returns (uint256[] memory packedBids) {
         uint256 len = bidCount;
         uint8 bidderId = auctioneer.IdMap(address(this));
-        packedBids = new uint256[](len);
+        uint256 count;
         for (uint256 bidId = 1; bidId < len + 1; bidId++) {
             Bid storage bid = bids[bidId];
             if (bid.state != BidState.OPEN) continue;
-            packedBids[bidId - 1] = packBid(bid.weiPerGas, bid.amountOfGas, bidderId);
+            ++count;
+        }
+        packedBids = new uint256[](count);
+        count = 0;
+        for (uint256 bidId = 1; bidId < len + 1; bidId++) {
+            Bid storage bid = bids[bidId];
+            if (bid.state != BidState.OPEN) continue;
+            packedBids[count] = packBid(bid.weiPerGas, bid.amountOfGas, bidderId);
+            ++count;
         }
     }
 
@@ -181,9 +197,9 @@ contract OpenBidder is IBidder {
         delete hashes;
 
         // sort bids to determine who won
-        uint256 bidCountLocal = bidCount;
         uint256[] memory roundBids = getBid(slot);
         LibSort.insertionSort(roundBids);
+        uint256 bidCountLocal = roundBids.length;
         uint256 cumAmount;
         for (uint256 bidIdx = bidCountLocal; bidIdx > 0; bidIdx--) {
             uint256 packedBid = roundBids[bidIdx - 1];
@@ -208,7 +224,7 @@ contract OpenBidder is IBidder {
         house.submitBundle(slot, itemsBought, hashes);
     }
 
-    function checkPendingBids(uint256 currentSlot) internal {
+    function checkPendingBids(uint256 currentSlot) public {
         uint256 len = bidCount;
         for (uint256 bidId = 1; bidId < len + 1; bidId++) {
             Bid storage bid = bids[bidId];

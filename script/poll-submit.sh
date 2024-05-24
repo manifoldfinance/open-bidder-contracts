@@ -5,9 +5,15 @@ set -x
 # Expects env var AUCTION_CONTRACT, RPC_L2
 source .env
 
+# clear pending bids
+cast send --rpc-url $RPC_L2 --private-key $PRIVATE_KEY $BIDDER_CONTRACT "checkPendingBids(uint256)" 1
+
+
 BID_ID=$(cast call --rpc-url $RPC_L2 $BIDDER_CONTRACT "getBidIdByBundleHash(bytes32)(uint256)" $BUNDLE_HASH)
 status=0
 count=0
+last_slot=$(cast call --rpc-url $RPC_L2 $AUCTION_CONTRACT "slotsCount()(uint256)")
+last_slot=$(expr $last_slot - 1)
 
 until [[ $status == 1 ]]; do
     slot_count=$(cast call --rpc-url $RPC_L2 $AUCTION_CONTRACT "slotsCount()(uint256)")
