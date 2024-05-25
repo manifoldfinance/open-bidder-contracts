@@ -5,30 +5,54 @@ import {Test, console} from "forge-std/Test.sol";
 import {WETH} from "solmate/tokens/WETH.sol";
 import {OpenBidder} from "../src/OpenBidder.sol";
 import {IAuctioneer} from "src/interfaces/IAuctioneer.sol";
+import {IBidder} from "src/interfaces/IBidder.sol";
 
 contract OpenBidderTest is Test {
     OpenBidder public bidder;
-    string RPC_L2 = vm.envString("RPC"); // L2 RPC url, default testnet
+    string RPC_L2 = vm.envString("RPC_L2"); // L2 RPC url, default testnet
     uint256 FORK_ID;
     WETH constant weth = WETH(payable(0x4200000000000000000000000000000000000006));
-    // todo: add mainnet details when deployed
-    // testnet
-    IAuctioneer constant auctioneer = IAuctioneer(0x10DeC79E201FE7b27b8c4A1524d9733727D60ea4);
-    address constant settlement = 0x46bb4fE80C04b5C28C761ADdd43FD10fFCcB57CE;
+    uint256 constant L2_CHAIN_ID = 7890785;
+    uint256 constant L2_TESTNET_CHAIN_ID = 42169;
+    IAuctioneer auctioneer;
+    address settlement;
     // auction operator
     address operator;
+    address owner;
     uint256 constant slot = 101;
+
+    error WrongChain();
 
     function setUp() public {
         FORK_ID = vm.createSelectFork(RPC_L2);
+        uint256 id = getChainID(); 
+        if (id == L2_CHAIN_ID) {
+            auctioneer = IAuctioneer(0x86Bc75A43704E38f0FD94BdA423C50071fE17c99);
+            settlement = 0x80C5FfF824d14c87C799D6F90b7D8e0a715bd33C;
+        } else if (id == L2_TESTNET_CHAIN_ID) {
+            auctioneer = IAuctioneer(0x56e0B667f0279ff74Ed04632B5230D77B78fc704);
+            settlement = 0xa77c65DBfaCAd5FA2996A234D11a02CD8F43A991;
+        } else {
+            revert WrongChain();
+        }
+        
         bidder = new OpenBidder(weth, address(auctioneer), settlement);
 
         // add new bidder to auctioneer
         operator = auctioneer.operator();
-        vm.prank(operator);
+        owner = auctioneer.owner();
+        vm.prank(owner);
         auctioneer.newBidder(address(bidder));
         vm.prank(operator);
         auctioneer.openAuction(slot, 5000000);
+    }
+
+    function getChainID() internal view returns (uint256) {
+        uint256 id;
+        assembly {
+            id := chainid()
+        }
+        return id;
     }
 
     function testOpenBid() public {
@@ -40,11 +64,12 @@ contract OpenBidderTest is Test {
         vm.deal(address(this), amount);
         bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
 
-        (uint120 amountOfGas2, uint128 weiPerGas2, address bidder2, bytes32 bundleHash2) = bidder.openBids(0);
+        (IBidder.BidState state,uint120 amountOfGas2, uint128 weiPerGas2, ,address bidder2, bytes32 bundleHash2) = bidder.bids(1);
         assertEq(bidder2, address(this));
         assertEq(weiPerGas2, weiPerGas);
         assertEq(amountOfGas2, amountOfGas);
         assertEq(bundleHash2, bundleHash);
+        assertEq(uint8(state), uint8(IBidder.BidState.OPEN));
     }
 
     function testGetBid() public {
@@ -74,9 +99,24 @@ contract OpenBidderTest is Test {
 
         bidder.submitBundles(slot);
 
-        (,, address bidder3,) = bidder.openBids(0);
-        assertEq(bidder3, address(0));
-        (,, address bidder2,) = bidder.wonBids(0);
-        assertEq(bidder2, address(this));
+        
+        (IBidder.BidState state,,, uint96 _slot,address bidder3,) = bidder.bids(1);
+        assertEq(bidder3, address(this));
+        assertEq(_slot, slot);
+        assertEq(uint8(state), uint8(IBidder.BidState.PENDING));
+    }
+
+    function testGetBidByDetails() public {
+        uint128 weiPerGas = 20000000000;
+        uint120 amountOfGas = 100000;
+        uint256 amount = uint256(weiPerGas) * uint256(amountOfGas);
+        bytes32 bundleHash = bytes32(uint256(1));
+
+        vm.deal(address(this), amount);
+        bidder.openBid{value: amount}(weiPerGas, amountOfGas, bundleHash);
+
+        assertEq(bidder.getBidIdByBundleHash(bundleHash), 1);
+        assertEq(bidder.getBidIdBySender(address(this)), 1);
+        assertEq(bidder.getBidIdByDetails(amountOfGas, weiPerGas), 1);
     }
 }

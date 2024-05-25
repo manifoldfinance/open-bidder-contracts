@@ -8,7 +8,15 @@ The OpenBidder contract facilitates participation in auctions by allowing users 
 - Cancellation: Bidders can cancel their open bids and reclaim their funds.
 - Bundle Submission: After an auction slot has ended, the contract automatically submits the bundle hashes to a settlement contract for processing.
 
-## Foundry
+## Scripts
+Functional scripts have been provided for full interaction with `OpenBidder`.
+- [Sign a tx](./script/sign-tx.sh)
+- [Send bundle to `mev_sendBetaBundle`](./script/send-bundle.sh)
+- [Open a bid](./script/open-bid.sh)
+- [Poll submitting bundles](./script/poll-submit.sh)
+- [Sign, send, bid and poll submit a tx](./script/sign-submit.sh)
+
+## Built with Foundry
 
 **Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
 

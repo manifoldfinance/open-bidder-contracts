@@ -17,21 +17,22 @@ contract OpenBidder is IBidder {
     using SafeTransferLib for WETH;
 
     struct Bid {
+        BidState state;
         uint120 amountOfGas;
         uint128 weiPerGas;
+        uint96 slot;
         address bidder;
         bytes32 bundleHash;
     }
 
+    address public operator;
     WETH public weth;
     IAuctioneer public auctioneer;
     ISettlement public house;
-    uint256 public slotFinished;
+    uint256 public slotSubmitted;
     uint256 public bidCount;
-    uint256 public wonBidCount;
     bytes32[] hashes;
-    mapping(uint256 bidId => Bid bid) public openBids;
-    mapping(uint256 bidId => Bid bid) public wonBids;
+    mapping(uint256 bidId => Bid bid) public bids;
 
     /**
      * @dev Constructor function to initialize the contract.
@@ -44,6 +45,7 @@ contract OpenBidder is IBidder {
         auctioneer = IAuctioneer(_auctioneer);
         house = ISettlement(settlement);
         weth.approve(_auctioneer, type(uint256).max);
+        operator = msg.sender;
     }
 
     /**
@@ -64,14 +66,14 @@ contract OpenBidder is IBidder {
         if (bidderId == 0) revert();
 
         // save bid
-        openBids[bidCount] = Bid(amountOfGas, weiPerGas, msg.sender, bundleHash);
         ++bidCount;
+        bids[bidCount] = Bid(BidState.OPEN, amountOfGas, weiPerGas, 0, msg.sender, bundleHash);
     }
 
     function _removeOpenBid(uint256 bidId) internal {
         // swap last bid with bid to remove, then remove last item
-        openBids[bidId] = openBids[bidCount - 1];
-        delete openBids[bidCount - 1];
+        bids[bidId] = bids[bidCount];
+        delete bids[bidCount];
         --bidCount;
     }
 
@@ -82,9 +84,10 @@ contract OpenBidder is IBidder {
      */
     function getBidIdByBundleHash(bytes32 bundleHash) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].bundleHash == bundleHash) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (bids[bidId].bundleHash == bundleHash) return bidId;
         }
+        bidId = 0;
     }
 
     /**
@@ -94,9 +97,10 @@ contract OpenBidder is IBidder {
      */
     function getBidIdBySender(address sender) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].bidder == sender) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (bids[bidId].bidder == sender) return bidId;
         }
+        bidId = 0;
     }
 
     /**
@@ -107,17 +111,18 @@ contract OpenBidder is IBidder {
      */
     function getBidIdByDetails(uint120 amountOfGas, uint128 weiPerGas) public view returns (uint256 bidId) {
         uint256 len = bidCount;
-        for (bidId; bidId < len; bidId++) {
-            if (openBids[bidId].weiPerGas == weiPerGas && openBids[bidId].amountOfGas == amountOfGas) break;
+        for (bidId = 1; bidId < len + 1; bidId++) {
+            if (bids[bidId].weiPerGas == weiPerGas && bids[bidId].amountOfGas == amountOfGas) return bidId;
         }
+        bidId = 0;
     }
 
     function _checkSender(uint256 bidId) internal view {
-        if (msg.sender != openBids[bidId].bidder) revert();
+        if (msg.sender != bids[bidId].bidder) revert();
     }
 
     function _amountPaid(uint256 bidId) internal view returns (uint256 amount) {
-        return uint256(openBids[bidId].weiPerGas) * uint256(openBids[bidId].amountOfGas);
+        return uint256(bids[bidId].weiPerGas) * uint256(bids[bidId].amountOfGas);
     }
 
     /**
@@ -132,11 +137,17 @@ contract OpenBidder is IBidder {
         uint256 amount = _amountPaid(bidId);
 
         // remove bid
+        if (uint8(bids[bidId].state) != uint8(BidState.OPEN)) revert();
         _removeOpenBid(bidId);
 
         // refund amount paid
         // use weth to avoid re-entrancy
         weth.safeTransfer(msg.sender, amount);
+    }
+
+    function removeBid(uint256 bidId) external {
+        if (msg.sender != operator) revert();
+        _removeOpenBid(bidId);
     }
 
     /**
@@ -146,9 +157,19 @@ contract OpenBidder is IBidder {
     function getBid(uint256) public view returns (uint256[] memory packedBids) {
         uint256 len = bidCount;
         uint8 bidderId = auctioneer.IdMap(address(this));
-        packedBids = new uint256[](len);
-        for (uint256 bidId; bidId < len; bidId++) {
-            packedBids[bidId] = packBid(openBids[bidId].weiPerGas, openBids[bidId].amountOfGas, bidderId);
+        uint256 count;
+        for (uint256 bidId = 1; bidId < len + 1; bidId++) {
+            Bid storage bid = bids[bidId];
+            if (bid.state != BidState.OPEN) continue;
+            ++count;
+        }
+        packedBids = new uint256[](count);
+        count = 0;
+        for (uint256 bidId = 1; bidId < len + 1; bidId++) {
+            Bid storage bid = bids[bidId];
+            if (bid.state != BidState.OPEN) continue;
+            packedBids[count] = packBid(bid.weiPerGas, bid.amountOfGas, bidderId);
+            ++count;
         }
     }
 
@@ -159,12 +180,14 @@ contract OpenBidder is IBidder {
      * @param slot Slot number of the finished auction
      */
     function submitBundles(uint256 slot) external {
-        if (slot <= slotFinished) return ();
+        if (slot <= slotSubmitted) return ();
 
         // check auction state
-        (, bool isOpen, bool isSettled) = auctioneer.auctions(slot);
+        (, bool isOpen, bool isSettled, bool isPaidOut, bool isRefunded) = auctioneer.auctions(slot);
         if (isOpen) revert();
         if (!isSettled) revert();
+        if (isPaidOut) revert();
+        if (isRefunded) revert();
 
         // check bidder info
         (uint120 itemsBought, uint128 amountOwed) = auctioneer.getBidderInfo(slot, address(this));
@@ -174,9 +197,9 @@ contract OpenBidder is IBidder {
         delete hashes;
 
         // sort bids to determine who won
-        uint256 bidCountLocal = bidCount;
         uint256[] memory roundBids = getBid(slot);
         LibSort.insertionSort(roundBids);
+        uint256 bidCountLocal = roundBids.length;
         uint256 cumAmount;
         for (uint256 bidIdx = bidCountLocal; bidIdx > 0; bidIdx--) {
             uint256 packedBid = roundBids[bidIdx - 1];
@@ -186,21 +209,36 @@ contract OpenBidder is IBidder {
             if (cumAmount > amountOwed) break;
             // get bidId by details
             uint256 bidId = getBidIdByDetails(amountOfGas, weiPerGas);
-            Bid storage bid = openBids[bidId];
+            Bid storage bid = bids[bidId];
+            bid.state = BidState.PENDING;
+            bid.slot = uint96(slot);
             // save hash
             hashes.push(bid.bundleHash);
-            // add to won list
-            wonBids[wonBidCount] = Bid(bid.amountOfGas, bid.weiPerGas, bid.bidder, bid.bundleHash);
-            ++wonBidCount;
-            // remove from open list
-            _removeOpenBid(bidId);
         }
 
-        slotFinished = slot;
+        slotSubmitted = slot;
+        checkPendingBids(slot);
 
         // approve future token spend and submit bundle hashes
         auctioneer.approve(address(house), slot, itemsBought);
         house.submitBundle(slot, itemsBought, hashes);
+    }
+
+    function checkPendingBids(uint256 currentSlot) public {
+        uint256 len = bidCount;
+        for (uint256 bidId = 1; bidId < len + 1; bidId++) {
+            Bid storage bid = bids[bidId];
+            if (bid.state != BidState.PENDING) continue;
+            if (uint256(bid.slot) == currentSlot) continue;
+            (, , bool isSettled, bool isPaidOut, bool isRefunded) = auctioneer.auctions(uint256(bid.slot));
+            if (!isSettled) continue;
+            if (isPaidOut) {
+                bid.state = BidState.FINAL;
+            } else if (isRefunded) {
+                // block was missed and refunded, so re-open bid
+                bid.state = BidState.OPEN;
+            }
+        }
     }
 
     /**

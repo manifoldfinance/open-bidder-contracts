@@ -30,7 +30,7 @@ interface IAuctioneer {
     function accountant() external view returns (address);
     function allowance(address, address, uint256) external view returns (uint256);
     function approve(address spender, uint256 id, uint256 amount) external returns (bool);
-    function auctions(uint256) external view returns (uint120 itemsForSale, bool isOpen, bool isSettled);
+    function auctions(uint256) external view returns (uint120 itemsForSale, bool isOpen, bool isSettled, bool isPaidOut, bool isRefunded);
     function balanceOf(address, uint256) external view returns (uint256);
     function bid(uint256 slot, uint256[] memory packedBids) external;
     function bidderMap(uint8) external view returns (address);
@@ -51,7 +51,6 @@ interface IAuctioneer {
     function pendingOwner() external view returns (address);
     function removeBidder(uint8 bidderId) external;
     function runAndSettle(uint256 slot) external;
-    function runAndSettleAndPayout(uint256 slot) external;
     function setOperator(address operator, bool approved) external returns (bool);
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
     function transfer(address receiver, uint256 id, uint256 amount) external returns (bool);
