@@ -14,7 +14,7 @@ Functional scripts have been provided for full interaction with `OpenBidder`.
 - [Send bundle to `mev_sendBetaBundle`](./script/send-bundle.sh)
 - [Open a bid](./script/open-bid.sh)
 - [Poll submitting bundles](./script/poll-submit.sh)
-- [Sign, send, bid and poll submit a tx](./script/sign-submit.sh)
+- [Sign, send, bid and poll submit a tx](./script/sign-submit-tx.sh)
 
 ## Built with Foundry
 
