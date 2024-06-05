@@ -112,6 +112,7 @@ contract OpenBidder is IBidder {
     function getBidIdByDetails(uint120 amountOfGas, uint128 weiPerGas) public view returns (uint256 bidId) {
         uint256 len = bidCount;
         for (bidId = 1; bidId < len + 1; bidId++) {
+            if (uint8(bids[bidId].state) != uint8(BidState.OPEN)) continue;
             if (bids[bidId].weiPerGas == weiPerGas && bids[bidId].amountOfGas == amountOfGas) return bidId;
         }
         bidId = 0;
